@@ -35,7 +35,7 @@ func loadMimes() map[string]string {
 	return mimes
 }
 
-var Mimes = loadMimes()
+// var Mimes = loadMimes()
 
 type Indexer interface {
 	Add(path string) error
@@ -60,36 +60,60 @@ func mimeFromExt(s string, m map[string]string) string {
 	return m[parts[len(parts)-1]]
 }
 
+func NewMemIndex(paths []string, ignore []string, ignoreHidden bool) *MemIndex {
+	return &MemIndex{
+		Files:        make(map[string]*File),
+		Dirs:         make(map[string]bool),
+		paths:        paths,
+		ignore:       ignore,
+		ignoreHidden: ignoreHidden,
+	}
+}
+
 type MemIndex struct {
-	Files   map[string]*File
-	cfg     map[string]string
-	current string
+	Files        map[string]*File
+	Dirs         map[string]bool
+	Current      string
+	paths        []string
+	ignore       []string
+	ignoreHidden bool
 }
 
 // Adds a new `File` entry to the index
 func (i *MemIndex) Add(path string, f fs.DirEntry, err error) error {
-	cfgIgnore := strings.ReplaceAll(i.cfg["ignore"], ", ", ",")
-	ignore := strings.Split(cfgIgnore, ",")
 	stat, err := f.Info()
 	if err != nil {
 		return err
 	}
+	fullPath := filepath.Join(i.Current, path)
+
+	if path == "." {
+		return nil
+	}
+
 	if stat.IsDir() {
-		for _, i := range ignore {
+		for _, i := range i.ignore {
 			if i == path {
 				return fs.SkipDir
 			}
 		}
+		if i.ignoreHidden && strings.HasPrefix(path, ".") {
+			return fs.SkipDir
+		}
+		i.Dirs[fullPath] = true
+		return nil
 	}
-	fullPath := filepath.Join(i.current, path)
+    if i.ignoreHidden && strings.HasPrefix(stat.Name(), "."){
+        return nil
+    }
 	id := hash(fullPath)
 	file := File{
 		Id:        id,
 		Name:      fullPath,
 		Directory: filepath.Dir(path),
 		Size:      stat.Size(),
-		MimeType:  mimeFromExt(stat.Name(), Mimes),
-		Modified:  stat.ModTime(),
+		// MimeType:  mimeFromExt(stat.Name(), Mimes),
+		Modified: stat.ModTime(),
 	}
 
 	i.Files[id] = &file
@@ -120,12 +144,20 @@ func (i *MemIndex) Move(from string, to string) error {
 }
 
 // Returns all the files. Do not use this unless it is absolutely neeeded
-func (i *MemIndex) AllPaths() []string {
+func (i *MemIndex) AllFiles() []string {
 	paths := []string{}
 	for _, p := range i.Files {
 		paths = append(paths, p.Name)
 	}
 	return paths
+}
+
+func (i *MemIndex) AllDirs() []string {
+	dirs := []string{}
+	for p := range i.Dirs {
+		dirs = append(dirs, p)
+	}
+	return dirs
 }
 
 // Returns all the `Files` with fields that match the value given
@@ -140,9 +172,10 @@ func (i *MemIndex) PathMatch(path string) []string {
 	return paths
 }
 
-func Walk(paths []string, fn func(path string, d fs.DirEntry, err error) error) {
+func Walk(paths []string, current *string, fn func(path string, d fs.DirEntry, err error) error) {
 	for _, p := range paths {
 		d := os.DirFS(p)
+		*current = p
 		fs.WalkDir(d, ".", fn)
 	}
 }
