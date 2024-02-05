@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -35,7 +36,6 @@ func loadMimes() map[string]string {
 	return mimes
 }
 
-// var Mimes = loadMimes()
 
 type Indexer interface {
 	Add(path string) error
@@ -170,16 +170,38 @@ func (i *MemIndex) AllDirs() []string {
 	return dirs
 }
 
-// Returns all the `Files` with fields that match the value given
-// Available fields are all the string fields in `File`
-func (i *MemIndex) PathMatch(path string) []string {
-	paths := []string{}
-	for _, p := range i.Files {
-		if strings.HasPrefix(p.Name, path) {
-			paths = append(paths, p.Name)
+// Returns only the []string values that contain substring v
+//
+// if optional `mode > 0`, reverses the match
+func Some(s []string, v string, inclusive ...bool) []string {
+	include := true
+	re, err := regexp.Compile(v)
+	if err != nil {
+		fmt.Printf("unable to read regex: '%v', %v\n", v, err)
+		os.Exit(1)
+	}
+
+	if len(inclusive) > 0 && !inclusive[0] {
+		include = false
+	}
+	res := []string{}
+	if len(s) == 0 {
+		return res
+	}
+	if v == "" {
+		return s
+	}
+	for _, p := range s {
+		match := re.FindString(p)
+		if match != "" {
+			if include {
+				res = append(res, p)
+			}
+		} else if !include {
+			res = append(res, p)
 		}
 	}
-	return paths
+	return res
 }
 
 func Walk(paths []string, root *string, current *string, fn func(path string, d fs.DirEntry, err error) error) {

@@ -31,8 +31,8 @@ func main() {
 	flag.Var(&ignorePaths, "ignore", "Path(s) to ignore in indexing. Use multiple times for more paths")
 
 	var showHidden bool
-	flag.BoolVar(&showHidden, "H", false, "Scan hidden directories starting with '.'")
-	flag.BoolVar(&showHidden, "hidden", false, "Scan hidden directories starting with '.'")
+	flag.BoolVar(&showHidden, "H", false, "include hidden directories in scan")
+	flag.BoolVar(&showHidden, "hidden", false, "include hidden directories in scan")
 
 	var dirMode bool
 	flag.BoolVar(&dirMode, "d", false, "Return only directories")
@@ -42,11 +42,16 @@ func main() {
 	flag.IntVar(&depth, "D", -1, "How many nested directories to index")
 	flag.IntVar(&depth, "depth", -1, "How many nested directories to index")
 
+	var grep string
+	flag.StringVar(&grep, "g", "", "show path matches that match regex pattern")
+	flag.StringVar(&grep, "grep", "", "show path files matches that match regex pattern")
+
+	var vgrep string
+	flag.StringVar(&vgrep, "v", "", "excludes paths match that match regex pattern")
+	flag.StringVar(&vgrep, "vgrep", "", "excludes paths match that match regex pattern")
+
 	flag.Parse()
 
-	if len(flag.Args()) > 0 {
-		paths = flag.Args()
-	}
 	if len(paths) == 0 {
 		path, err := os.Getwd()
 		if err != nil {
@@ -67,9 +72,14 @@ func main() {
 	var allPaths []string
 	if dirMode {
 		allPaths = memIndex.AllDirs()
-
 	} else {
 		allPaths = memIndex.AllFiles()
+	}
+	if grep != "" {
+		allPaths = index.Some(allPaths, grep)
+	}
+	if vgrep != "" {
+		allPaths = index.Some(allPaths, vgrep, false)
 	}
 	fmt.Println(strings.Join(allPaths, "\n"))
 
