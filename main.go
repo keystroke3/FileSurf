@@ -24,17 +24,29 @@ func (s *StringSliceVar) Set(value string) error {
 func main() {
 	var paths StringSliceVar
 	flag.Var(&paths, "p", "Path(s) to search. Use multiple times for more paths")
+	flag.Var(&paths, "paths", "Path(s) to search. Use multiple times for more paths")
 
 	var ignorePaths StringSliceVar
 	flag.Var(&ignorePaths, "i", "Path(s) to ignore in indexing. Use multiple times for more paths")
+	flag.Var(&ignorePaths, "ignore", "Path(s) to ignore in indexing. Use multiple times for more paths")
+
+	var showHidden bool
+	flag.BoolVar(&showHidden, "H", false, "Scan hidden directories starting with '.'")
+	flag.BoolVar(&showHidden, "hidden", false, "Scan hidden directories starting with '.'")
 
 	var dirMode bool
 	flag.BoolVar(&dirMode, "d", false, "Return only directories")
+	flag.BoolVar(&dirMode, "only-dirs", false, "Return only directories")
 
-	var ignoreHidden bool
-	flag.BoolVar(&ignoreHidden, "ignore-hidden", false, "Ignores hidden directories prefixed with '.'")
+	var depth int
+	flag.IntVar(&depth, "D", -1, "How many nested directories to index")
+	flag.IntVar(&depth, "depth", -1, "How many nested directories to index")
 
 	flag.Parse()
+
+	if len(flag.Args()) > 0 {
+		paths = flag.Args()
+	}
 	if len(paths) == 0 {
 		path, err := os.Getwd()
 		if err != nil {
@@ -42,16 +54,16 @@ func main() {
 		}
 		paths = append(paths, path)
 	}
-
-	memIndex := index.NewMemIndex(paths, ignorePaths, ignoreHidden)
 	for _, path := range paths {
 		_, err := os.Stat(path)
 		if err != nil {
-			fmt.Println("path not found", path)
+			fmt.Printf("path not found '%v'\n", path)
 			os.Exit(1)
 		}
 	}
-	index.Walk(paths, &memIndex.Current, memIndex.Add)
+	memIndex := index.NewMemIndex(paths, ignorePaths, showHidden, depth)
+
+	index.Walk(paths, &memIndex.Root, &memIndex.Current, memIndex.Add)
 	var allPaths []string
 	if dirMode {
 		allPaths = memIndex.AllDirs()

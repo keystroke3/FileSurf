@@ -60,52 +60,62 @@ func mimeFromExt(s string, m map[string]string) string {
 	return m[parts[len(parts)-1]]
 }
 
-func NewMemIndex(paths []string, ignore []string, ignoreHidden bool) *MemIndex {
+func NewMemIndex(paths []string, ignore []string, showHidden bool, depth int) *MemIndex {
 	return &MemIndex{
-		Files:        make(map[string]*File),
-		Dirs:         make(map[string]bool),
-		paths:        paths,
-		ignore:       ignore,
-		ignoreHidden: ignoreHidden,
+		Files:      make(map[string]*File),
+		Dirs:       make(map[string]bool),
+		paths:      paths,
+		ignore:     ignore,
+		showHidden: showHidden,
+		depth:      depth,
 	}
 }
 
 type MemIndex struct {
-	Files        map[string]*File
-	Dirs         map[string]bool
-	Current      string
-	paths        []string
-	ignore       []string
-	ignoreHidden bool
+	Files      map[string]*File
+	Dirs       map[string]bool
+	Current    string
+	Root       string
+	paths      []string
+	ignore     []string
+	showHidden bool
+	depth      int
 }
 
 // Adds a new `File` entry to the index
 func (i *MemIndex) Add(path string, f fs.DirEntry, err error) error {
+	if path == "." {
+		return nil
+	}
 	stat, err := f.Info()
 	if err != nil {
 		return err
 	}
 	fullPath := filepath.Join(i.Current, path)
-
-	if path == "." {
-		return nil
+	relPath, err := filepath.Rel(i.Root, fullPath)
+	if err != nil {
+		fmt.Println("could not determine relative path,", err)
+		os.Exit(1)
 	}
-
+	depth := strings.Count(relPath, string(os.PathSeparator))
 	if stat.IsDir() {
+		if depth == i.depth {
+			return fs.SkipDir
+		}
 		for _, i := range i.ignore {
 			if i == path {
 				return fs.SkipDir
 			}
 		}
-		if i.ignoreHidden && strings.HasPrefix(path, ".") {
+		if !i.showHidden && strings.HasPrefix(path, ".") {
 			return fs.SkipDir
 		}
 		i.Dirs[fullPath] = true
 		return nil
 	}
-    if i.ignoreHidden && strings.HasPrefix(stat.Name(), "."){
-        return nil
-    }
+	if !i.showHidden && strings.HasPrefix(stat.Name(), ".") {
+		return nil
+	}
 	id := hash(fullPath)
 	file := File{
 		Id:        id,
@@ -172,10 +182,11 @@ func (i *MemIndex) PathMatch(path string) []string {
 	return paths
 }
 
-func Walk(paths []string, current *string, fn func(path string, d fs.DirEntry, err error) error) {
+func Walk(paths []string, root *string, current *string, fn func(path string, d fs.DirEntry, err error) error) {
 	for _, p := range paths {
 		d := os.DirFS(p)
 		*current = p
+		*root = p
 		fs.WalkDir(d, ".", fn)
 	}
 }
