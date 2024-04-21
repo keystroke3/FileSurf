@@ -1,2 +1,5 @@
 # FileSurf
-A small tool for indexing all the files in a system for blazing fast fuzzy search
+A small tool for walking your big directories for fast fuzzy searching
+
+## Setup
+

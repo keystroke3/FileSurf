@@ -36,7 +36,6 @@ func loadMimes() map[string]string {
 	return mimes
 }
 
-
 type Indexer interface {
 	Add(path string) error
 	Remove(path string) error
