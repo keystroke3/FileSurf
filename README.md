@@ -1,5 +1,5 @@
 # FileSurf
-A small tool for recursively your directories for quick and easy fuzzy searching.
+A small tool for recursively searching your directories for quick and easy fuzzy searching.
 
 
 ## Setup
@@ -28,10 +28,9 @@ In order for the build to work, you must have Golang and all the Golang tooling 
 
 ---
 
-*Tip*
+**Tip**
 
-You might want to rename the binary to something shorter like `fs` or setup an a shell alias so you have less 
-typing to do
+You might want to rename the binary to something shorter like fs or set up a shell alias so you have less typing to do
 
 ---
 
@@ -42,12 +41,12 @@ For a quick usage guide, just run:
 filesurf --help
 ```
 
-What filesurf does:
+Filesurf capabilities:
  - List all the items in the current directory
  - List all the files in multiple given directories
  - Perform REGEX filters on the search results
  - Run as a daemon
- - Remotely run another filesurf instance over http
+ - Remotely call another filesurf instance over http
 
 ### Listing
 
@@ -74,7 +73,7 @@ $ filesurf
 /pics/animals/dogs/poodle-puppy.png
 ```
 
-By default, only the files are shown. If you wish to show directories instead, use `-d` flag:
+By default, only the files are shown. If you wish to show directories instead, use the `-d` flag::
 
 ```bash
 $ filesurf -p /pics -d
@@ -137,7 +136,8 @@ $ filesurf -g 'dogs'
 /pics/animals/dogs/labrador-retriever-adult.png
 /pics/animals/dogs/poodle-puppy.png
 ```
-The parameters can be used together in one command:
+
+Multiple parameters can be combined in a single command:
 
 ```bash
 $ filesurf -g 'dogs' -v 'puppy'
@@ -145,7 +145,7 @@ $ filesurf -g 'dogs' -v 'puppy'
 /pics/animals/dogs/labrador-retriever-adult.png
 /pics/animals/dogs/rottweiler-adult.png
 ```
-The parameters can be repeated for extra filtering:
+They can also be can be repeated for extra filtering:
 
 ```bash
 $ filesurf -g 'dogs' -v 'puppy' -g 'lab'
@@ -178,8 +178,8 @@ be to mount the NAS drive somewhere using something like SAMBA or NFS, and then 
 but it will be very slow and inefficient. Also, if you for some reason don't want to or can't mount the directory in question, then this might not
 work for you. 
 
-This is where the filesurf `--daemon` and `--host` come in. When the `--host` parameter is used with `--daemon` flag, a new TCP listener will be started
-and listen at the specified host and port. You can provide a full host like `127.0.0.1:8080` or just specify the port `:8080`. This will be assumed to listen on localhost.
+This is where the filesurf `--daemon` and `--host` come in. When the `--host` parameter is used with the `--daemon` flag, a new TCP listener will be started
+and listen at the specified host and port. You can provide a full host like `127.0.0.1:8080` or just specify the port `:8080` and it will be assumed to be listening on localhost.
 If the port is being used, then the connection will fail and the daemon will not be started.
 
 Once the daemon is running, you can make requests to it using `--host` parameter. Everything runs just as on local machine, but all the flags and parameters are sent out to the
@@ -187,7 +187,7 @@ remote filesurf instance where they are executed and the results are returned.
 
 ---
 
-> *WARNING*
+**WARNING**
 
 > Filesurf will walk the full directories it is instructed to if it has read access. While Filesurf does not read the contents of the files, it can be exploited by an attacker while performing
 > reconnaissance to get a lay of the land they are about to attack.
