@@ -14,6 +14,8 @@ import (
 // StringSliceVar is a custom type that implements the flag.Value interface
 // It allows us to collect multiple values for the same flag into a slice
 
+var DefaultAddr = ":10002"
+
 type CmdArgs struct {
 	Depth       int
 	DirMode     bool
@@ -35,6 +37,19 @@ func (s *StringSliceVar) Set(value string) error {
 	return nil
 }
 
+type BoolStr string
+
+func (s *BoolStr) String() string {
+	return fmt.Sprintf("%v", *s)
+}
+
+func (s *BoolStr) Set(value string) error {
+	if value == "" {
+		*s = BoolStr(DefaultAddr)
+	}
+	return nil
+}
+
 func remotizeHomePaths(args *CmdArgs) error {
 	clean_paths := []string{}
 	for _, path := range args.Paths {
@@ -52,12 +67,14 @@ func remotizeHomePaths(args *CmdArgs) error {
 	return nil
 }
 
-
-func handleCommand(args CmdArgs) string {
+func handleCommand(args CmdArgs) (string, error) {
 	for _, path := range args.Paths {
 		_, err := os.Stat(path)
 		if err != nil {
-			return fmt.Sprintf("path not found '%v'\n", path)
+			if os.IsNotExist(err) {
+				return "", fmt.Errorf("path not found '%v'\n", path)
+			}
+			return "", err
 		}
 	}
 
@@ -76,7 +93,7 @@ func handleCommand(args CmdArgs) string {
 	if args.Vgrep != "" {
 		allPaths = index.Some(allPaths, args.Vgrep, false)
 	}
-	return fmt.Sprint(strings.Join(allPaths, "\n"))
+	return fmt.Sprint(strings.Join(allPaths, "\n")), nil
 }
 
 func cmdOverTCP(args CmdArgs, addr string) string {
@@ -100,7 +117,11 @@ func cmdOverTCP(args CmdArgs, addr string) string {
 		os.Exit(1)
 	}
 	if results.Error != "" {
-		fmt.Println("Remote daemon returned an error:", results.Error)
+		if strings.HasPrefix(results.Error, "path not found") {
+			fmt.Printf(strings.ReplaceAll(results.Error, "path not found", "path not found on "+addr))
+		} else {
+			fmt.Println("Remote daemon returned an error:", results.Error)
+		}
 		os.Exit(1)
 	}
 	return results.Paths
@@ -132,16 +153,16 @@ func main() {
 	flag.StringVar(&grep, "g", "", "show path matches that match regex pattern")
 	flag.StringVar(&grep, "grep", "", "show path files matches that match regex pattern")
 
-	var host string
-	flag.StringVar(&host, "host", "", "HTTP address to use. Will listen on address in daemon mode and connect in command mode")
-
 	var vgrep string
 	flag.StringVar(&vgrep, "v", "", "excludes paths match that match regex pattern")
 	flag.StringVar(&vgrep, "vgrep", "", "excludes paths match that match regex pattern")
 
-	var daemon bool
-	flag.BoolVar(&daemon, "deamon", false, "Launch filesurf daemon")
-	flag.BoolVar(&daemon, "demon", false, "Launch filesurf demon")
+	var host string
+	flag.StringVar(&host, "host", "", "address for a remote filesurf instance to use instead of local")
+
+	var serve string
+	flag.StringVar(&serve, "s", "", "telnet address to listen for commands")
+	flag.StringVar(&serve, "serve", "", "telnet address to listen for commands")
 
 	flag.Parse()
 
@@ -163,21 +184,25 @@ func main() {
 		Vgrep:       vgrep,
 	}
 
-	if host == "" {
-		results := handleCommand(cmd)
-		fmt.Println(results)
+	if serve != "" {
+		TCPListen(string(serve))
 		return
 	}
-	if !daemon {
-        err := remotizeHomePaths(&cmd)
-        if err != nil{
-            fmt.Println(err)
-            return
-        }
+
+	if host != "" {
+		err := remotizeHomePaths(&cmd)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 		results := cmdOverTCP(cmd, host)
 		fmt.Println(results)
 		return
-	} else {
-		TCPListen(host)
 	}
+	results, err := handleCommand(cmd)
+    if err != nil{
+        fmt.Println(err)
+        return
+    }
+	fmt.Println(results)
 }

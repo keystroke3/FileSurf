@@ -109,7 +109,7 @@ func handleMessage(conn net.Conn) {
 	log.Printf("handling message from %v\n", conn.RemoteAddr())
 	var cmd CmdArgs
 	buf := make([]byte, 1024)
-    _, err := conn.Read(buf)
+	_, err := conn.Read(buf)
 	if err != nil && err != io.EOF {
 		log.Printf("unable to read from socket connection, %v\n", err)
 		return
@@ -119,7 +119,7 @@ func handleMessage(conn net.Conn) {
 	err = json.Unmarshal(rcmd, &cmd)
 	if err != nil {
 		log.Println("unable to read command", err)
-        resp.Error =  fmt.Sprintf("unable to read command. %v", err)
+		resp.Error = fmt.Sprintf("unable to read command. %v", err)
 		respb, merr := json.Marshal(resp)
 		if merr != nil {
 			log.Println("unable to marshal response, ", merr)
@@ -131,20 +131,36 @@ func handleMessage(conn net.Conn) {
 
 	log.Printf("command args: %+v", cmd)
 
-    err = localizeHomePaths(&cmd)
-    if err != nil{
-        resp.Error = err.Error()
+	err = localizeHomePaths(&cmd)
+	if err != nil {
+		resp.Error = err.Error()
 		respb, merr := json.Marshal(resp)
 		if merr != nil {
 			log.Println("unable to marshal response, ", merr)
 			return
 		}
-        conn.Write(respb)
-        return
-    }
-	result := handleCommand(cmd)
-    resp.Paths = result
+		conn.Write(respb)
+		return
+	}
+	result, err := handleCommand(cmd)
+	if err != nil {
+		resp.Error = err.Error()
+	} else {
+		resp.Paths = result
+	}
+
+	// if strings.HasPrefix(result, "path not found") {
+	// 	result = strings.Replace(result,
+	// 		"path not found",
+	// 		fmt.Sprintf("path not found on %v ", conn.LocalAddr()),
+	// 		1,
+	// 	)
+	// }
 	respb, err := json.Marshal(resp)
+	if err != nil {
+		log.Println("unable to marshal response, ", err)
+		return
+	}
 	_, err = conn.Write(respb)
 	if err != nil {
 		log.Println("unable to write response to client")

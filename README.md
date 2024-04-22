@@ -7,7 +7,7 @@ The easiest way to install FileSurf is to download the [latest release](https://
 You can then place the binary in directory that is in your system PATH, typically `/usr/bin`, `/usr/local/bin` or `~/.local/bin`.
 
 ```bash
-wget -O filesurf https://github.com/keystroke3/FileSurf/releases/download/v0.1.11/filesurf
+wget -O filesurf https://github.com/keystroke3/FileSurf/releases/download/<latest-version>filesurf
 chmod +x filesurf
 ./filesurf --help
 ```
@@ -45,7 +45,7 @@ Filesurf capabilities:
  - List all the items in the current directory
  - List all the files in multiple given directories
  - Perform REGEX filters on the search results
- - Run as a demon
+ - Run as a TCP server
  - Remotely call another filesurf instance over http
 
 ### Listing
@@ -178,16 +178,44 @@ be to mount the NAS drive somewhere using something like SAMBA or NFS, and then 
 but it will be very slow and inefficient. Also, if you for some reason don't want to or can't mount the directory in question, then this might not
 work for you. 
 
-This is where the filesurf `--daemon`, `--demon` and `--host` come in. When the `--host` parameter is used with the `-d[a]emon` flag, a new TCP listener will be started
-and listen at the specified host and port. You can provide a full host like `127.0.0.1:8080` or just specify the port `:8080` and it will be assumed to be listening on localhost.
-If the port is being used, then the connection will fail and the daemon will not be started.
+This is where the filesurf `--serve` or `-s` parameter comes in handy. When the `--serve` parameter is passed with an addres `addr`, a new TCP listener will be started
+and listen at the specified host and port. You can provide a full address like `127.0.0.1:8080` or just specify the port `:8080` and it will be assumed to be listening on localhost.
+If the port is being used, then the connection will fail and the listener will not be started.
 
 ```bash
-$ filesurf --demon --host ':8888' &> /tmp/filesurf.log disown
+$ filesurf --serve ':8888' 
 ```
 
-Once the demon is running, you can make requests to it using `--host` parameter. Everything runs just as on local machine, but all the flags and parameters are sent out to the
+Once the server is running, you can make requests to it using `--host` parameter. Everything runs just as on local machine, but all the flags and parameters are sent out to the
 remote filesurf instance where they are executed and the results are returned.
+
+You can run the TCP server in the background like this:
+
+```bash
+$ filesurf --serve ':8888' &> /tmp/filesurf.log & disown
+```
+
+For a more convenient way to run it, you can define a systemd service in `/etc/systemd/system/filesurf.service` like so:
+
+```systemd
+[Unit]
+Description='Filesurf TCP server'
+
+[Service]
+User=<your_user>
+ExecStart=/path/to/filesurf -s '<ip>:<port>'
+
+[Install]
+WantedBy=multi-user.target
+```
+Don't for get to restart systemd daemon and enable the newly created filesurf service so it starts at boot:
+
+```bash
+$ sudo systemctl daemon-reload
+$ sudo systemctl enable filesurf
+$ sudo systemctl start filesurf
+```
+
 
 ---
 
@@ -195,7 +223,7 @@ remote filesurf instance where they are executed and the results are returned.
 
 > Filesurf will walk the full directories it is instructed to if it has read access. While Filesurf does not read the contents of the files, it can be exploited by an attacker while performing
 > reconnaissance to get a lay of the land they are about to attack.
-> You should only use the demon behind a firewall in a controlled LAN environment with the port blocked form outside access. Do not expose the listening port to the wider
+> You should only use the TCP server behind a firewall in a controlled LAN environment with the port blocked form outside access. Do not expose the listening port to the wider
 > internet unless you are aware of the risks and are willing to take it or have mitigations for it.
 > I have some plans for adding ssh, key-pair and password support, with the last being the first to be implemented, but those are just plans for now.
 
@@ -210,13 +238,15 @@ struct {
 	DirMode     bool // false
 	Grep        string // ""
 	IgnorePaths []string // []
-	Paths       []string // ['.']
+	Paths       []string // required
 	ShowHidden  bool // false
 	Vgrep       string // ""
 }
 
 ```
-Any flags or parameters not set or desired can be left out and the default values will be used.
+
+Any flags or parameters not set or desired can be left out and the default values will be used. The exception is the `Paths` parameter which must be provided when using external tools such as curl.
+
 
 ## Support
 If you are happy with Filesurf and would like to support the project, here are some things you can do:
