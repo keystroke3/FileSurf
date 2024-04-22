@@ -35,7 +35,32 @@ func (s *StringSliceVar) Set(value string) error {
 	return nil
 }
 
+func remotizeHomePaths(args *CmdArgs) error {
+	clean_paths := []string{}
+	for _, path := range args.Paths {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("unable to determine local home directory")
+		}
+		if strings.HasPrefix(path, home) {
+			clean_paths = append(clean_paths, strings.Replace(path, home, "~", 1))
+		} else {
+			clean_paths = append(clean_paths, path)
+		}
+	}
+	args.Paths = clean_paths
+	return nil
+}
+
+
 func handleCommand(args CmdArgs) string {
+	for _, path := range args.Paths {
+		_, err := os.Stat(path)
+		if err != nil {
+			return fmt.Sprintf("path not found '%v'\n", path)
+		}
+	}
+
 	memIndex := index.NewMemIndex(args.Paths, args.IgnorePaths, args.ShowHidden, args.Depth)
 	index.Walk(args.Paths, &memIndex.Root, &memIndex.Current, memIndex.Add)
 
@@ -56,11 +81,11 @@ func handleCommand(args CmdArgs) string {
 
 func cmdOverTCP(args CmdArgs, addr string) string {
 	conn, err := net.Dial("tcp", addr)
-	defer conn.Close()
 	if err != nil {
-		fmt.Println("unable to connect to address ", addr, err)
+		fmt.Println("unable to connect to address", addr, "target may be offline")
 		os.Exit(1)
 	}
+	defer conn.Close()
 	msg, err := json.Marshal(args)
 	if err != nil {
 		fmt.Println("unable to marshal command, ", err)
@@ -97,7 +122,7 @@ func main() {
 
 	var dirMode bool
 	flag.BoolVar(&dirMode, "d", false, "Return only directories")
-	flag.BoolVar(&dirMode, "only-dirs", false, "Return only directories")
+	flag.BoolVar(&dirMode, "dirs", false, "Return only directories")
 
 	var depth int
 	flag.IntVar(&depth, "D", -1, "How many nested directories to index")
@@ -115,7 +140,8 @@ func main() {
 	flag.StringVar(&vgrep, "vgrep", "", "excludes paths match that match regex pattern")
 
 	var daemon bool
-	flag.BoolVar(&daemon, "daemon", false, "Launch filesurf daemon")
+	flag.BoolVar(&daemon, "deamon", false, "Launch filesurf daemon")
+	flag.BoolVar(&daemon, "demon", false, "Launch filesurf demon")
 
 	flag.Parse()
 
@@ -125,13 +151,6 @@ func main() {
 			fmt.Println("could not load paths, ", err)
 		}
 		paths = append(paths, path)
-	}
-	for _, path := range paths {
-		_, err := os.Stat(path)
-		if err != nil {
-			fmt.Printf("path not found '%v'\n", path)
-			os.Exit(1)
-		}
 	}
 
 	cmd := CmdArgs{
@@ -144,17 +163,21 @@ func main() {
 		Vgrep:       vgrep,
 	}
 
-	var results string
-
-	if host != "" {
-		if !daemon {
-			results = cmdOverTCP(cmd, host)
-            println(results)
-            os.Exit(0)
+	if host == "" {
+		results := handleCommand(cmd)
+		fmt.Println(results)
+		return
+	}
+	if !daemon {
+        err := remotizeHomePaths(&cmd)
+        if err != nil{
+            fmt.Println(err)
+            return
         }
-        TCPListen(host)
+		results := cmdOverTCP(cmd, host)
+		fmt.Println(results)
+		return
 	} else {
-         results = handleCommand(cmd)
-    }
-   fmt.Println(results) 
+		TCPListen(host)
+	}
 }

@@ -9,53 +9,62 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 )
-
 
 type NetResponse struct {
 	Paths string
 	Error string
 }
 
-func Listen(listener net.Listener){
-    defer listener.Close()
+func Listen(listener net.Listener) {
+	defer listener.Close()
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		<-c
-        listener.Close()
-		os.Exit(1)
+		sig := <-c
+		if sig != nil {
+			listener.Close()
+			fmt.Printf("\nclosing open connections...\n")
+			os.Exit(1)
+		}
 	}()
-
 	for {
 		conn, err := listener.Accept()
-		if err != nil && err != io.EOF {
-			log.Printf("unable to read from connection, %s", err)
-			continue
+		if err != nil {
+			if _, ok := err.(net.Error); ok {
+				log.Printf("\nunable to accept connections temporarily: %v\n", err)
+				break
+			}
+			if err != io.EOF {
+				log.Printf("\nunable to accept connections, %v\n", err)
+				break
+			}
 		}
 		go handleMessage(conn)
 	}
+
 }
 
-func TCPListen(addr string){
-    listener, err := net.Listen("tcp", addr)
-    if err != nil{
-        log.Fatal("unable to listen on address, ", err)
-    }
-    log.Println("filesurf http daemon listening on", addr)
-    Listen(listener)
+func TCPListen(addr string) {
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatal("unable to listen on address, ", err)
+	}
+	log.Println("filesurf http daemon listening on", addr)
+	Listen(listener)
 }
 
 func UnixListen(file string) {
 	checkSocketConflict(file)
 	listener, err := net.Listen("unix", file)
-    defer os.Remove(file)
+	defer os.Remove(file)
 	if err != nil {
 		log.Fatal("unable to initialize the daemon ", err)
 	}
-    Listen(listener)
+	Listen(listener)
 }
 
 func checkSocketConflict(file string) {
@@ -77,39 +86,67 @@ func checkSocketConflict(file string) {
 
 }
 
-func handleMessage(conn io.ReadWriteCloser) {
+func localizeHomePaths(args *CmdArgs) error {
+	clean_paths := []string{}
+	for _, path := range args.Paths {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("unable to determine local home directory")
+		}
+		if strings.HasPrefix(path, "~") {
+			clean_paths = append(clean_paths, strings.Replace(path, "~", home, 1))
+		} else {
+			clean_paths = append(clean_paths, path)
+		}
+	}
+	args.Paths = clean_paths
+	return nil
+
+}
+
+func handleMessage(conn net.Conn) {
 	defer conn.Close()
+	log.Printf("handling message from %v\n", conn.RemoteAddr())
 	var cmd CmdArgs
 	buf := make([]byte, 1024)
-	_, err := conn.Read(buf)
+    _, err := conn.Read(buf)
 	if err != nil && err != io.EOF {
-		fmt.Printf("unable to read from socket connection, %v\n", err)
+		log.Printf("unable to read from socket connection, %v\n", err)
 		return
 	}
+	resp := NetResponse{}
 	rcmd := bytes.Trim(buf, "\x00")
 	err = json.Unmarshal(rcmd, &cmd)
 	if err != nil {
-		resp := NetResponse{
-			Paths: "",
-            Error: fmt.Sprintf(`{"Error": "unable to read command. %v"}`, err),
-		}
+		log.Println("unable to read command", err)
+        resp.Error =  fmt.Sprintf("unable to read command. %v", err)
 		respb, merr := json.Marshal(resp)
 		if merr != nil {
 			log.Println("unable to marshal response, ", merr)
 			return
 		}
 		conn.Write(respb)
-        return
+		return
 	}
-	result := handleCommand(cmd)
-    resp := NetResponse{
-		Paths: result,
-		Error: "",
-	}
-    respb, err := json.Marshal(resp)
-    _, err = conn.Write(respb)
-    if err != nil{
-        log.Println("unable to write response to client")
-    }
-}
 
+	log.Printf("command args: %+v", cmd)
+
+    err = localizeHomePaths(&cmd)
+    if err != nil{
+        resp.Error = err.Error()
+		respb, merr := json.Marshal(resp)
+		if merr != nil {
+			log.Println("unable to marshal response, ", merr)
+			return
+		}
+        conn.Write(respb)
+        return
+    }
+	result := handleCommand(cmd)
+    resp.Paths = result
+	respb, err := json.Marshal(resp)
+	_, err = conn.Write(respb)
+	if err != nil {
+		log.Println("unable to write response to client")
+	}
+}

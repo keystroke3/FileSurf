@@ -7,7 +7,7 @@ The easiest way to install FileSurf is to download the [latest release](https://
 You can then place the binary in directory that is in your system PATH, typically `/usr/bin`, `/usr/local/bin` or `~/.local/bin`.
 
 ```bash
-curl -o filesurf https://github.com/keystroke3/FileSurf/releases/download/v0.1.11/filesurf
+wget -O filesurf https://github.com/keystroke3/FileSurf/releases/download/v0.1.11/filesurf
 chmod +x filesurf
 ./filesurf --help
 ```
@@ -45,7 +45,7 @@ Filesurf capabilities:
  - List all the items in the current directory
  - List all the files in multiple given directories
  - Perform REGEX filters on the search results
- - Run as a daemon
+ - Run as a demon
  - Remotely call another filesurf instance over http
 
 ### Listing
@@ -178,11 +178,15 @@ be to mount the NAS drive somewhere using something like SAMBA or NFS, and then 
 but it will be very slow and inefficient. Also, if you for some reason don't want to or can't mount the directory in question, then this might not
 work for you. 
 
-This is where the filesurf `--daemon` and `--host` come in. When the `--host` parameter is used with the `--daemon` flag, a new TCP listener will be started
+This is where the filesurf `--daemon`, `--demon` and `--host` come in. When the `--host` parameter is used with the `-d[a]emon` flag, a new TCP listener will be started
 and listen at the specified host and port. You can provide a full host like `127.0.0.1:8080` or just specify the port `:8080` and it will be assumed to be listening on localhost.
 If the port is being used, then the connection will fail and the daemon will not be started.
 
-Once the daemon is running, you can make requests to it using `--host` parameter. Everything runs just as on local machine, but all the flags and parameters are sent out to the
+```bash
+$ filesurf --demon --host ':8888' &> /tmp/filesurf.log disown
+```
+
+Once the demon is running, you can make requests to it using `--host` parameter. Everything runs just as on local machine, but all the flags and parameters are sent out to the
 remote filesurf instance where they are executed and the results are returned.
 
 ---
@@ -191,7 +195,7 @@ remote filesurf instance where they are executed and the results are returned.
 
 > Filesurf will walk the full directories it is instructed to if it has read access. While Filesurf does not read the contents of the files, it can be exploited by an attacker while performing
 > reconnaissance to get a lay of the land they are about to attack.
-> You should only use the daemon behind a firewall in a controlled LAN environment with the port blocked form outside access. Do not expose the listening port to the wider
+> You should only use the demon behind a firewall in a controlled LAN environment with the port blocked form outside access. Do not expose the listening port to the wider
 > internet unless you are aware of the risks and are willing to take it or have mitigations for it.
 > I have some plans for adding ssh, key-pair and password support, with the last being the first to be implemented, but those are just plans for now.
 
