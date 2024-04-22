@@ -234,7 +234,7 @@ If you wish to send the requests directly using outside tools like curl or use i
 
 ```go
 struct {
-	Depth       int // -1
+	Depth       int // required (-1 for infinite)
 	DirMode     bool // false
 	Grep        string // ""
 	IgnorePaths []string // []
@@ -245,8 +245,19 @@ struct {
 
 ```
 
-Any flags or parameters not set or desired can be left out and the default values will be used. The exception is the `Paths` parameter which must be provided when using external tools such as curl.
+Any flags or parameters not set or desired can be left out and the default values will be used.
+The exception is the `Paths` and `Depth` parameters which must be provided when using external tools.  
+here is an example using curl:
 
+```bash
+curl telnet://zen:10002 <<< '{"Depth":-1,"DirMode":false,"IgnorePaths":["services"],"Paths":["/media"]}'
+```
+`/etc/hosts` entry for `zen` has been mapped to `10.0.0.2` where filesurf server is running.
+This will also work if you have ssh hostnames defined in `~/.ssh/config`. In my case, the same machine is has the identity `zenith` in ssh config:
+
+```bash
+curl telnet://zenith:10002 <<< '{"Depth":-1,"DirMode":false,"IgnorePaths":["services"],"Paths":["/media"]}'
+```
 
 ## Support
 If you are happy with Filesurf and would like to support the project, here are some things you can do:
