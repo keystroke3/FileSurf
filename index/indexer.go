@@ -101,8 +101,9 @@ func (i *MemIndex) Add(path string, f fs.DirEntry, err error) error {
 		if depth == i.depth {
 			return fs.SkipDir
 		}
-		for _, i := range i.ignore {
-			if i == path {
+		_, leaf := filepath.Split(path)
+		for _, j := range i.ignore {
+			if j == leaf {
 				return fs.SkipDir
 			}
 		}

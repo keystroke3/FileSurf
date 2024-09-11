@@ -50,12 +50,12 @@ func (s *BoolStr) Set(value string) error {
 	return nil
 }
 
-func remotizeHomePaths(args *CmdArgs) error {
+func remotizeHomePaths(paths []string) ([]string, error) {
 	clean_paths := []string{}
-	for _, path := range args.Paths {
+	for _, path := range paths {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return fmt.Errorf("unable to determine local home directory")
+			return nil, fmt.Errorf("unable to determine local home directory")
 		}
 		if strings.HasPrefix(path, home) {
 			clean_paths = append(clean_paths, strings.Replace(path, home, "~", 1))
@@ -63,8 +63,7 @@ func remotizeHomePaths(args *CmdArgs) error {
 			clean_paths = append(clean_paths, path)
 		}
 	}
-	args.Paths = clean_paths
-	return nil
+	return clean_paths, nil
 }
 
 func handleCommand(args CmdArgs) (string, error) {
@@ -165,6 +164,8 @@ func main() {
 	flag.StringVar(&serve, "serve", "", "telnet address to listen for commands")
 
 	flag.Parse()
+	argPaths := flag.Args()
+	paths = append(paths, argPaths...)
 
 	if len(paths) == 0 {
 		path, err := os.Getwd()
@@ -190,7 +191,8 @@ func main() {
 	}
 
 	if host != "" {
-		err := remotizeHomePaths(&cmd)
+		net_paths, err := remotizeHomePaths(cmd.Paths)
+		cmd.Paths = net_paths
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -200,9 +202,9 @@ func main() {
 		return
 	}
 	results, err := handleCommand(cmd)
-    if err != nil{
-        fmt.Println(err)
-        return
-    }
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	fmt.Println(results)
 }
