@@ -24,6 +24,8 @@ type CmdArgs struct {
 	Paths       []string
 	ShowHidden  bool
 	Vgrep       string
+	Gsensitive  bool
+	Vsensitive  bool
 }
 
 type StringSliceVar []string
@@ -82,15 +84,15 @@ func handleCommand(args CmdArgs) (string, error) {
 
 	var allPaths []string
 	if args.DirMode {
-		allPaths = memIndex.AllDirs()
+		allPaths = memIndex.GetDirs()
 	} else {
-		allPaths = memIndex.AllFiles()
+		allPaths = memIndex.GetFiles()
 	}
 	if args.Grep != "" {
-		allPaths = index.Some(allPaths, args.Grep)
+		allPaths = index.Some(allPaths, args.Grep, args.Gsensitive, true)
 	}
 	if args.Vgrep != "" {
-		allPaths = index.Some(allPaths, args.Vgrep, false)
+		allPaths = index.Some(allPaths, args.Vgrep, args.Vsensitive, false)
 	}
 	return fmt.Sprint(strings.Join(allPaths, "\n")), nil
 }
@@ -156,6 +158,14 @@ func main() {
 	flag.StringVar(&vgrep, "v", "", "excludes paths match that match regex pattern")
 	flag.StringVar(&vgrep, "vgrep", "", "excludes paths match that match regex pattern")
 
+	var grepCase string
+	flag.StringVar(&grepCase, "G", "", "like grep but case sensitive. Overrides grep")
+	flag.StringVar(&grepCase, "grep-case", "", "like grep but case sensitive Overrides grep")
+
+	var vgrepCase string
+	flag.StringVar(&vgrepCase, "V", "", "like vgrep but case sensitive. Overrides vgrep")
+	flag.StringVar(&vgrepCase, "vgrep-case", "", "like vgrep but case sensitive. Overrides vgrep")
+
 	var host string
 	flag.StringVar(&host, "host", "", "address for a remote filesurf instance to use instead of local")
 
@@ -175,14 +185,29 @@ func main() {
 		paths = append(paths, path)
 	}
 
+	gsensitive := false
+	vsensitive := false
+
+	if grepCase != "" {
+		grep = grepCase
+		gsensitive = true
+	}
+
+	if vgrepCase != "" {
+		vgrep = vgrepCase
+		vsensitive = true
+	}
+
 	cmd := CmdArgs{
 		Depth:       depth,
 		DirMode:     dirMode,
 		Grep:        grep,
+		Gsensitive:  gsensitive,
+		Vgrep:       vgrep,
+		Vsensitive:  vsensitive,
 		IgnorePaths: ignorePaths,
 		Paths:       paths,
 		ShowHidden:  showHidden,
-		Vgrep:       vgrep,
 	}
 
 	if serve != "" {

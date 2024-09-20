@@ -36,14 +36,6 @@ func loadMimes() map[string]string {
 	return mimes
 }
 
-type Indexer interface {
-	Add(path string) error
-	Remove(path string) error
-	Move(f *File, from string, to string) error
-	AllPaths() []string
-	PathMatch(field string, val string) []string
-}
-
 func hash(s string) string {
 	return string(md5.New().Sum([]byte(s)))
 }
@@ -153,8 +145,7 @@ func (i *MemIndex) Move(from string, to string) error {
 	return nil
 }
 
-// Returns all the files. Do not use this unless it is absolutely neeeded
-func (i *MemIndex) AllFiles() []string {
+func (i *MemIndex) GetFiles() []string {
 	paths := []string{}
 	for _, p := range i.Files {
 		paths = append(paths, p.Name)
@@ -162,7 +153,15 @@ func (i *MemIndex) AllFiles() []string {
 	return paths
 }
 
-func (i *MemIndex) AllDirs() []string {
+func (i *MemIndex) GetFilesQuoted() []string {
+	paths := []string{}
+	for _, p := range i.Files {
+		paths = append(paths, fmt.Sprintf("%q", p.Name))
+	}
+	return paths
+}
+
+func (i *MemIndex) GetDirs() []string {
 	dirs := []string{}
 	for p := range i.Dirs {
 		dirs = append(dirs, p)
@@ -170,20 +169,39 @@ func (i *MemIndex) AllDirs() []string {
 	return dirs
 }
 
+func (i *MemIndex) GetDirsQuoted() []string {
+	dirs := []string{}
+	for p := range i.Dirs {
+		dirs = append(dirs, fmt.Sprintf("%q", p))
+	}
+	return dirs
+}
+
+func (i *MemIndex) GetDirsEscaped() []string {
+	dirs := []string{}
+	for p := range i.Dirs {
+		dirs = append(dirs, fmt.Sprintf("%q", p))
+	}
+	return dirs
+}
+
 // Returns only the []string values that contain substring v
 //
-// if optional `mode > 0`, reverses the match
-func Some(s []string, v string, inclusive ...bool) []string {
-	include := true
-	re, err := regexp.Compile(v)
+// if optional `inclusive = false`, then the match is reversed
+func Some(s []string, v string, sensitive bool, inclusive bool) []string {
+	var re *regexp.Regexp
+	var err error
+	if !sensitive {
+		re, err = regexp.Compile(strings.ToLower(v))
+	} else {
+		re, err = regexp.Compile(v)
+	}
+
 	if err != nil {
 		fmt.Printf("unable to read regex: '%v', %v\n", v, err)
 		os.Exit(1)
 	}
 
-	if len(inclusive) > 0 && !inclusive[0] {
-		include = false
-	}
 	res := []string{}
 	if len(s) == 0 {
 		return res
@@ -192,12 +210,15 @@ func Some(s []string, v string, inclusive ...bool) []string {
 		return s
 	}
 	for _, p := range s {
-		match := re.FindString(p)
-		if match != "" {
-			if include {
-				res = append(res, p)
-			}
-		} else if !include {
+		var match string
+		if !sensitive {
+			match = re.FindString(strings.ToLower(p))
+		} else {
+			match = re.FindString(p)
+		}
+		if match != "" && inclusive {
+			res = append(res, p)
+		} else if !inclusive {
 			res = append(res, p)
 		}
 	}
