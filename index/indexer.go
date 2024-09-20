@@ -218,7 +218,8 @@ func Some(s []string, v string, sensitive bool, inclusive bool) []string {
 		}
 		if match != "" && inclusive {
 			res = append(res, p)
-		} else if !inclusive {
+		}
+		if match == "" && !inclusive {
 			res = append(res, p)
 		}
 	}
