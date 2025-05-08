@@ -1,6 +1,7 @@
 package index
 
 import (
+	"census/types"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
@@ -9,7 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -22,6 +25,43 @@ type File struct {
 	MimeType  string
 	Size      int64
 	Modified  time.Time
+}
+
+func Query(args *types.Command) (string, error) {
+	for _, path := range args.Paths {
+		_, err := os.Stat(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return "", fmt.Errorf("path not found '%v'\n", path)
+			}
+			return "", err
+		}
+	}
+
+	memIndex := NewMemIndex(args.Paths, args.IgnorePaths, args.ShowHidden, args.Depth)
+	Walk(args.Paths, &memIndex.Root, &memIndex.Current, memIndex.Add)
+
+	var allPaths []string
+	if args.DirMode {
+		allPaths = memIndex.GetDirs()
+	} else {
+		allPaths = memIndex.GetFiles()
+	}
+	sensitive := true
+	inclusive := true
+	if args.Vgrep != "" {
+		allPaths = Some(allPaths, args.Vgrep, !sensitive, !inclusive)
+	}
+	if args.Vsensitive != "" {
+		allPaths = Some(allPaths, args.Vgrep, sensitive, !inclusive)
+	}
+	if args.Grep != "" {
+		allPaths = Some(allPaths, args.Grep, !sensitive, inclusive)
+	}
+	if args.Gsensitive != "" {
+		allPaths = Some(allPaths, args.Grep, sensitive, inclusive)
+	}
+	return fmt.Sprint(strings.Join(allPaths, "\n")), nil
 }
 
 func loadMimes() map[string]string {
@@ -86,7 +126,7 @@ func (i *MemIndex) Add(path string, f fs.DirEntry, err error) error {
 	relPath, err := filepath.Rel(i.Root, fullPath)
 	if err != nil {
 		fmt.Println("could not determine relative path,", err)
-		os.Exit(1)
+		syscall.Exit(1)
 	}
 	depth := strings.Count(relPath, string(os.PathSeparator))
 	if stat.IsDir() {
@@ -94,10 +134,8 @@ func (i *MemIndex) Add(path string, f fs.DirEntry, err error) error {
 			return fs.SkipDir
 		}
 		_, leaf := filepath.Split(path)
-		for _, j := range i.ignore {
-			if j == leaf {
-				return fs.SkipDir
-			}
+		if slices.Contains(i.ignore, leaf) {
+			return fs.SkipDir
 		}
 		if !i.showHidden && strings.HasPrefix(path, ".") {
 			return fs.SkipDir
@@ -199,7 +237,7 @@ func Some(s []string, v string, sensitive bool, inclusive bool) []string {
 
 	if err != nil {
 		fmt.Printf("unable to read regex: '%v', %v\n", v, err)
-		os.Exit(1)
+		syscall.Exit(1)
 	}
 
 	res := []string{}
