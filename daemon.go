@@ -53,7 +53,7 @@ func TCPListen(addr string) {
 	if err != nil {
 		log.Fatal("unable to listen on address, ", err)
 	}
-	log.Println("filesurf http daemon listening on", addr)
+	log.Println("census http daemon listening on", addr)
 	Listen(listener)
 }
 
@@ -81,7 +81,7 @@ func checkSocketConflict(file string) {
 		os.Remove(file)
 		return
 	}
-	fmt.Println("another filesurf is already running")
+	fmt.Println("another census is already running")
 	os.Exit(1)
 
 }

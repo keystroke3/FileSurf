@@ -1,26 +1,26 @@
-# FileSurf
+# Census
 A small tool for recursively searching your directories for quick and easy fuzzy searching.
 
 
 ## Setup
-The easiest way to install FileSurf is to download the [latest release](https://github.com/keystroke3/FileSurf/releases/latest) binary.
+The easiest way to install Census is to download the [latest release](https://github.com/keystroke3/Census/releases/latest) binary.
 You can then place the binary in directory that is in your system PATH, typically `/usr/bin`, `/usr/local/bin` or `~/.local/bin`.
 
 ```bash
-wget -O filesurf https://github.com/keystroke3/FileSurf/releases/download/<latest-version>filesurf
-chmod +x filesurf
-./filesurf --help
+wget -O census https://github.com/keystroke3/Census/releases/download/<latest-version>census
+chmod +x census
+./census --help
 ```
 
 Alternatively, you can download the source code from the archive files in the releases, extract and build from source:
 
 
 ```bash
-mkdir filesurf
-cd filesurf
-wget https://github.com/keystroke3/FileSurf/archive/refs/tags/<verion>.tar.gz
+mkdir census
+cd census
+wget https://github.com/keystroke3/Census/archive/refs/tags/<verion>.tar.gz
 tar -xzvf <version>.tar.gz
-cd FileSurf-<version>
+cd Census-<version>
 go build . # add custom flags
 ```
 
@@ -38,25 +38,25 @@ You might want to rename the binary to something shorter like fs or set up a she
 
 For a quick usage guide, just run:
 ```bash
-filesurf --help
+census --help
 ```
 
-Filesurf capabilities:
+census capabilities:
  - List all the items in the current directory
  - List all the files in multiple given directories
  - Perform REGEX filters on the search results
  - Run as a TCP server
- - Remotely call another filesurf instance over http
+ - Remotely call another census instance over http
 
 ### Listing
 
 #### Simple
-The main thing that Filesurf does is list items, so it is pretty easy to do that. If you want to list all the items in the 
-current working directory, call filesurf with no arguments. The paths will be listed in full from the root `-p` path
+The main thing that census does is list items, so it is pretty easy to do that. If you want to list all the items in the 
+current working directory, call census with no arguments. The paths will be listed in full from the root `-p` path
 If for example we are in the directory `/pics`:
 
 ```bash
-$ filesurf
+$ census
 /pics/cars/ford/blue-mustang.png
 /pics/cars/ford/red-fiesta.png
 /pics/cars/chevrolet/silverado-truck.png
@@ -76,7 +76,7 @@ $ filesurf
 By default, only the files are shown. If you wish to show directories instead, use the `-d` flag::
 
 ```bash
-$ filesurf -p /pics -d
+$ census -p /pics -d
 /pics/cars/ford
 /pics/cars/chevrolet
 /pics/animals/cats
@@ -88,7 +88,7 @@ $ filesurf -p /pics -d
 If you want to list items in more directories, you can use the `-p` or `--path` parameter for each directory you wish to add.
 In the `/pics` example, you can specify
 ```bash
-$ filesurf -p /animals/cats  -p /pics/cars/ford
+$ census -p /animals/cats  -p /pics/cars/ford
 /pics/cars/ford/blue-mustang.png
 /pics/cars/ford/red-fiesta.png
 /pics/animals/cats/fluffy-kitten.png
@@ -105,7 +105,7 @@ directory you wish to be included rather than enabling all the hidden directorie
 Example:
 
 ```bash
-$ filesurf -p .homework
+$ census -p .homework
 .homework/totally.png
 .homework/real.png
 .homework/homework.png
@@ -126,7 +126,7 @@ that contain `<regexp>`.
 For example:
 
 ```bash
-$ filesurf -g 'dogs'
+$ census -g 'dogs'
 
 /pics/animals/dogs/german-shepherd-puppy.png
 /pics/animals/dogs/golden-retriever-puppy.png
@@ -140,7 +140,7 @@ $ filesurf -g 'dogs'
 Multiple parameters can be combined in a single command:
 
 ```bash
-$ filesurf -g 'dogs' -v 'puppy'
+$ census -g 'dogs' -v 'puppy'
 
 /pics/animals/dogs/labrador-retriever-adult.png
 /pics/animals/dogs/rottweiler-adult.png
@@ -148,7 +148,7 @@ $ filesurf -g 'dogs' -v 'puppy'
 They can also be can be repeated for extra filtering:
 
 ```bash
-$ filesurf -g 'dogs' -v 'puppy' -g 'lab'
+$ census -g 'dogs' -v 'puppy' -g 'lab'
 
 /pics/animals/dogs/labrador-retriever-adult.png
 ```
@@ -174,46 +174,46 @@ Just like ignore, it will stop searching when it reaches a certain depth and the
 ### Remoting
 
 Suppose you have a Network Attached Storage (NAS) drive and you want to quickly fuzz out some of its contents. The simplest solution would
-be to mount the NAS drive somewhere using something like SAMBA or NFS, and then run Filesurf on the mount directory. This will work
+be to mount the NAS drive somewhere using something like SAMBA or NFS, and then run census on the mount directory. This will work
 but it will be very slow and inefficient. Also, if you for some reason don't want to or can't mount the directory in question, then this might not
 work for you. 
 
-This is where the filesurf `--serve` or `-s` parameter comes in handy. When the `--serve` parameter is passed with an addres `addr`, a new TCP listener will be started
+This is where the census `--serve` or `-s` parameter comes in handy. When the `--serve` parameter is passed with an addres `addr`, a new TCP listener will be started
 and listen at the specified host and port. You can provide a full address like `127.0.0.1:8080` or just specify the port `:8080` and it will be assumed to be listening on localhost.
 If the port is being used, then the connection will fail and the listener will not be started.
 
 ```bash
-$ filesurf --serve ':8888' 
+$ census --serve ':8888' 
 ```
 
 Once the server is running, you can make requests to it using `--host` parameter. Everything runs just as on local machine, but all the flags and parameters are sent out to the
-remote filesurf instance where they are executed and the results are returned.
+remote census instance where they are executed and the results are returned.
 
 You can run the TCP server in the background like this:
 
 ```bash
-$ filesurf --serve ':8888' &> /tmp/filesurf.log & disown
+$ census --serve ':8888' &> /tmp/census.log & disown
 ```
 
-For a more convenient way to run it, you can define a systemd service in `/etc/systemd/system/filesurf.service` like so:
+For a more convenient way to run it, you can define a systemd service in `/etc/systemd/system/census.service` like so:
 
 ```systemd
 [Unit]
-Description='Filesurf TCP server'
+Description='census TCP server'
 
 [Service]
 User=<your_user>
-ExecStart=/path/to/filesurf -s '<ip>:<port>'
+ExecStart=/path/to/census -s '<ip>:<port>'
 
 [Install]
 WantedBy=multi-user.target
 ```
-Don't for get to restart systemd daemon and enable the newly created filesurf service so it starts at boot:
+Don't for get to restart systemd daemon and enable the newly created census service so it starts at boot:
 
 ```bash
 $ sudo systemctl daemon-reload
-$ sudo systemctl enable filesurf
-$ sudo systemctl start filesurf
+$ sudo systemctl enable census
+$ sudo systemctl start census
 ```
 
 
@@ -221,7 +221,7 @@ $ sudo systemctl start filesurf
 
 **WARNING**
 
-> Filesurf will walk the full directories it is instructed to if it has read access. While Filesurf does not read the contents of the files, it can be exploited by an attacker while performing
+> census will walk the full directories it is instructed to if it has read access. While census does not read the contents of the files, it can be exploited by an attacker while performing
 > reconnaissance to get a lay of the land they are about to attack.
 > You should only use the TCP server behind a firewall in a controlled LAN environment with the port blocked form outside access. Do not expose the listening port to the wider
 > internet unless you are aware of the risks and are willing to take it or have mitigations for it.
@@ -252,7 +252,7 @@ here is an example using curl:
 ```bash
 curl telnet://zen:10002 <<< '{"Depth":-1,"DirMode":false,"IgnorePaths":["services"],"Paths":["/media"]}'
 ```
-`/etc/hosts` entry for `zen` has been mapped to `10.0.0.2` where filesurf server is running.
+`/etc/hosts` entry for `zen` has been mapped to `10.0.0.2` where census server is running.
 This will also work if you have ssh hostnames defined in `~/.ssh/config`. In my case, the same machine is has the identity `zenith` in ssh config:
 
 ```bash
@@ -260,7 +260,7 @@ curl telnet://zenith:10002 <<< '{"Depth":-1,"DirMode":false,"IgnorePaths":["serv
 ```
 
 ## Support
-If you are happy with Filesurf and would like to support the project, here are some things you can do:
+If you are happy with census and would like to support the project, here are some things you can do:
 
 1. Tell people about the project. This will get more eyes on it and help it grow.
 2. Contribute. I am open to people's contributions, be it bug fixes, new features, translations, etc.
@@ -268,5 +268,5 @@ If you are happy with Filesurf and would like to support the project, here are s
 
 
 DISCLAIMER:
-Filesurf is a hobby project created for personal use and made public for others to use and contribute to. The authors are not responsible for any data loss or damages that may result in 
-use of Filesurf.
+census is a hobby project created for personal use and made public for others to use and contribute to. The authors are not responsible for any data loss or damages that may result in 
+use of census.

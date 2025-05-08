@@ -1,8 +1,8 @@
 package main
 
 import (
+	"census/index"
 	"encoding/json"
-	"filesurf/index"
 	"flag"
 	"fmt"
 	"io"
@@ -167,7 +167,7 @@ func main() {
 	flag.StringVar(&vgrepCase, "vgrep-case", "", "like vgrep but case sensitive. Overrides vgrep")
 
 	var host string
-	flag.StringVar(&host, "host", "", "address for a remote filesurf instance to use instead of local")
+	flag.StringVar(&host, "host", "", "address for a remote census instance to use instead of local")
 
 	var serve string
 	flag.StringVar(&serve, "s", "", "telnet address to listen for commands")
